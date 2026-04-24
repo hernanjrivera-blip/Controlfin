@@ -1095,7 +1095,7 @@ function setEditTipo(tipo, init) {
     // Render rubro grid
     var rg = el('editRbGrid');
     rg.innerHTML = RUBROS.map(function(r){
-      return '<button class="rb" onclick="setEditRub(''+r.id+'')">'+'<span class="rb-e">'+r.e+'</span>'+r.n+'</button>';
+      return '<button class="rb" onclick="setEditRub(\'' + r.id + '\')">' + '<span class="rb-e">' + r.e + '</span>' + r.n + '</button>';
     }).join('');
     // Auto-detectar rubro
     var desc = el('editDesc').value, nota = el('editNota').value;
@@ -1104,7 +1104,7 @@ function setEditTipo(tipo, init) {
   } else if (tipo==='g' && init) {
     var rg = el('editRbGrid');
     rg.innerHTML = RUBROS.map(function(r){
-      return '<button class="rb" onclick="setEditRub(''+r.id+'')">'+'<span class="rb-e">'+r.e+'</span>'+r.n+'</button>';
+      return '<button class="rb" onclick="setEditRub(\'' + r.id + '\')">' + '<span class="rb-e">' + r.e + '</span>' + r.n + '</button>';
     }).join('');
   }
   if (tipo==='i' && !init) {
