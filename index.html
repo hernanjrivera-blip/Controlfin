@@ -1403,7 +1403,8 @@ function exportCSV(){
 window.addEventListener('load',function(){
   if(!localStorage.getItem(PKEY))el('lmsg').textContent='Primera vez: creá tu PIN (4-6 dígitos)';
 });
-if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(function(){});
+// SW desactivado
+if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(regs){regs.forEach(function(r){r.unregister();});});}
 </script>
 </body>
 </html>
