@@ -1241,49 +1241,130 @@ function toggleVoice(){
   else{recogInst.start();isRec=true;el('voiceBtn').className='voice-btn rec';el('voiceLbl').textContent='Tocá para detener...';el('voiceSt').textContent='Escuchando...';}
 }
 function parseVoice(text){
-  var t=text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  var monto=0;var numMatch=t.match(/(\d[\d.,]*)/);
-  if(numMatch){monto=parseFloat(numMatch[1].replace(/\./g,'').replace(',','.'));}
-  else{var pw={'cero':0,'uno':1,'dos':2,'tres':3,'cuatro':4,'cinco':5,'seis':6,'siete':7,'ocho':8,'nueve':9,'diez':10,'veinte':20,'treinta':30,'cien':100,'mil':1000,'dos mil':2000,'cinco mil':5000,'diez mil':10000,'veinte mil':20000,'cien mil':100000};var sk=Object.keys(pw).sort(function(a,b){return b.length-a.length;});for(var i=0;i<sk.length;i++){if(t.includes(sk[i])){monto=pw[sk[i]];break;}}}
-  if(!monto){el('voiceSt').textContent='⚠️ No detecté monto';return;}
-  var esI=/cobr|ingres|honor|recib/.test(t);
-  var rubroKw={impuestos:['impuesto','afip'],servicios:['luz','agua','gas','internet'],transporte:['nafta','uber','taxi','peaje'],salud:['medico','farmacia'],alimentacion:['super','mercado'],galacticos:['asado','birra','cerveza'],bebidas:['vino','whisky','fernet'],salidas:['restaurant','bar','cine']};
-  var rub='otros';var rks=Object.keys(rubroKw);
-  for(var ri=0;ri<rks.length;ri++){var kws=rubroKw[rks[ri]];for(var ki=0;ki<kws.length;ki++){if(t.includes(kws[ki])){rub=rks[ri];break;}}if(rub!=='otros')break;}
-  var desc=text;var dm=text.match(/(?:por|para|de|en)\s+(.+)/i);if(dm)desc=dm[1].trim();
-  desc=desc.charAt(0).toUpperCase()+desc.slice(1);
-  if(!esI){setMode('g');selRub(rub);el('gMonto').value=monto;el('gDesc').value=desc;el('gDate').value=today();el('voiceSt').textContent='✓ Gasto $'+monto.toLocaleString('es-AR')+' — revisá y confirmá';}
-  else{setMode('i');el('iMonto').value=monto;el('iDesc').value=desc;el('iDate').value=today();el('voiceSt').textContent='✓ Ingreso $'+monto.toLocaleString('es-AR')+' — revisá y confirmá';}
-  toast('🎙️ Revisá los datos y tocá Registrar');
-}
+  var t=text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
 
-async function initScan(input){
-  var file=input.files[0];if(!file)return;input.value='';
-  el('scanModal').style.display='flex';
-  el('scanSt').className='scan-st';el('scanSt').textContent='⏳ Analizando con IA...';
-  el('scApply').disabled=true;el('scFecha').value=today();el('scMonto').value='';el('scDesc').value='';el('scNota').value='';
-  scanAnswer=null;
-  var b64=await new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(file);});
-  try{
-    var resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+GEMINI_KEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{inlineData:{mimeType:file.type||'image/jpeg',data:b64}},{text:'Analizá este comprobante argentino. Respondé SOLO con JSON:\n{"fecha":"YYYY-MM-DD","monto":1234.56,"desc":"concepto","nota":"emisor","tipo":"transferencia_recibida|transferencia_emitida|pago_servicio|pago_impuesto|compra|cobro|otro","es_ingreso":false,"rubro":"uno de: impuestos,servicios,alquiler,transporte,salud,personal,tecnologia,bancarios,alimentacion,hijos,estudio,compartidos,bebidas,salidas,otros"}'}]}]})});
-    if(!resp.ok)throw new Error('Gemini '+resp.status);
-    var data=await resp.json();
-    var text=((((data.candidates||[])[0]||{}).content||{}).parts||[{}])[0].text||'';
-    var match=text.match(/\{[\s\S]*\}/);if(!match)throw new Error('sin JSON');
-    scanData=JSON.parse(match[0]);
-    if(scanData.fecha)el('scFecha').value=scanData.fecha;
-    if(scanData.monto)el('scMonto').value=scanData.monto;
-    if(scanData.desc)el('scDesc').value=scanData.desc;
-    if(scanData.nota)el('scNota').value=scanData.nota;
-    el('scanSt').className='scan-st'+(scanData.monto&&scanData.fecha?' ok':'');
-    el('scanSt').textContent=scanData.monto&&scanData.fecha?'✓ Datos extraídos — revisá y confirmá':'⚠️ Datos parciales — completá los campos';
-    if(scanData.es_ingreso)selScanOpt('ingreso_honorario');else selScanOpt('gasto_'+(scanData.rubro||'otros'));
-  }catch(e){
-    el('scanSt').className='scan-st err';el('scanSt').textContent='⚠️ No se pudo analizar — completá manualmente';
-    scanData={fecha:today(),monto:null,desc:'',nota:''};
+  // ── MONTO ──
+  var monto=0;
+  var numMatch=t.match(/(\d[\d.,]*)/);
+  if(numMatch){monto=parseFloat(numMatch[1].replace(/\./g,'').replace(',','.'));}
+  else{
+    var pw={
+      'cero':0,'un ':1,'uno':1,'una':1,'dos':2,'tres':3,'cuatro':4,'cinco':5,
+      'seis':6,'siete':7,'ocho':8,'nueve':9,'diez':10,'once':11,'doce':12,
+      'trece':13,'catorce':14,'quince':15,'veinte':20,'treinta':30,'cuarenta':40,
+      'cincuenta':50,'sesenta':60,'setenta':70,'ochenta':80,'noventa':90,
+      'cien ':100,'ciento':100,'doscientos':200,'trescientos':300,'cuatrocientos':400,
+      'quinientos':500,'seiscientos':600,'setecientos':700,'ochocientos':800,'novecientos':900,
+      'mil ':1000,'dos mil':2000,'tres mil':3000,'cuatro mil':4000,'cinco mil':5000,
+      'seis mil':6000,'siete mil':7000,'ocho mil':8000,'nueve mil':9000,
+      'diez mil':10000,'veinte mil':20000,'treinta mil':30000,'cuarenta mil':40000,
+      'cincuenta mil':50000,'cien mil':100000,'doscientos mil':200000,
+      'quinientos mil':500000,'un millon':1000000
+    };
+    var sk=Object.keys(pw).sort(function(a,b){return b.length-a.length;});
+    for(var i=0;i<sk.length;i++){if(t.includes(sk[i])){monto=pw[sk[i]];break;}}
   }
-  var opts=[['ingreso_honorario','💼 Cobro honorarios'],['ingreso_renta','🏠 Cobro renta'],['gasto_servicios','⚡ Servicio'],['gasto_impuestos','🏛️ Impuesto'],['gasto_bancarios','🏦 Bancario'],['gasto_transporte','🚗 Transporte'],['gasto_salud','🏥 Salud'],['gasto_otros','📋 Otro gasto']];
-  el('scanOpts').innerHTML=opts.map(function(o){return '<button class="scan-opt" onclick="selScanOpt(\''+o[0]+'\')">'+o[1]+'</button>';}).join('');
+  if(!monto){el('voiceSt').textContent='⚠️ No detecté monto — intentá de nuevo';return;}
+
+  // ── FECHA ──
+  var fecha=today();
+  var now=new Date();
+
+  // Fecha explícita: "el 15", "el 3 de mayo", "15 de abril"
+  var fechaMatch=t.match(/el\s+(\d{1,2})(?:\s+de\s+(\w+))?/);
+  if(!fechaMatch)fechaMatch=t.match(/(\d{1,2})\s+de\s+(\w+)/);
+  if(fechaMatch){
+    var dia=parseInt(fechaMatch[1]);
+    var mesNom=fechaMatch[2]||null;
+    var mesNums={enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,octubre:10,noviembre:11,diciembre:12};
+    var mes=mesNom?mesNums[mesNom]:now.getMonth()+1;
+    if(mes){
+      var anio=now.getFullYear();
+      // Si la fecha ya pasó y no especificó año, puede ser el próximo mes
+      var d=new Date(anio,mes-1,dia);
+      if(d>now&&!mesNom)d=new Date(anio,mes-2,dia); // mes anterior
+      fecha=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    }
+  }
+  // Palabras relativas
+  else if(/hoy/.test(t)){fecha=today();}
+  else if(/ayer/.test(t)){var ay=new Date(now);ay.setDate(ay.getDate()-1);fecha=ay.toISOString().split('T')[0];}
+  else if(/ma[nñ]ana/.test(t)){var ma=new Date(now);ma.setDate(ma.getDate()+1);fecha=ma.toISOString().split('T')[0];}
+  else if(/pasado ma[nñ]ana/.test(t)){var pm=new Date(now);pm.setDate(pm.getDate()+2);fecha=pm.toISOString().split('T')[0];}
+  else if(/lunes/.test(t)||/martes/.test(t)||/mi[eé]rcoles/.test(t)||/jueves/.test(t)||/viernes/.test(t)||/s[aá]bado/.test(t)||/domingo/.test(t)){
+    var dias={lunes:1,martes:2,'miercoles':3,'miércoles':3,jueves:4,viernes:5,'sabado':6,'sábado':6,domingo:0};
+    var target=-1;
+    Object.keys(dias).forEach(function(k){if(t.includes(k))target=dias[k];});
+    if(target>=0){
+      var diff=target-now.getDay();
+      if(diff<0)diff+=7;
+      var nd=new Date(now);nd.setDate(nd.getDate()+diff);
+      fecha=nd.toISOString().split('T')[0];
+    }
+  }
+  else if(/pr[oó]ximo\s+mes|el\s+mes\s+que\s+viene/.test(t)){
+    var nm=new Date(now);nm.setMonth(nm.getMonth()+1);nm.setDate(1);
+    fecha=nm.toISOString().split('T')[0];
+  }
+
+  // ── TIPO (ingreso/gasto) ──
+  var esI=/(cobr|ingres|honor|recib|me\s+pag|me\s+deposit|transfer.*recib)/.test(t);
+
+  // ── RUBRO — usando la función de detección ya definida ──
+  var rub = detectRubro(t, '') || 'otros';
+  // Si no detectó por keywords extendidas, buscar en lista básica
+  if(rub==='otros'){
+    var rubroExtra={
+      impuestos:['impuesto','afip','arca','arba','iibb'],
+      servicios:['luz','agua','gas','internet','telefono','epec','metrogas','edemsa'],
+      transporte:['nafta','combustible','peaje','uber','cabify','taxi','remis','colectivo'],
+      salud:['medico','farmacia','analisis','turno','clinica','dentista'],
+      alimentacion:['super','mercado','verdura','carniceria','panaderia','almacen'],
+      bancarios:['banco','comision','tarjeta','prestamo'],
+      galacticos:['asado','birra','cerveza','galactico'],
+      bebidas:['vino','whisky','fernet'],
+      salidas:['restaurant','restaurante','bar','cine','pizza']
+    };
+    var rks=Object.keys(rubroExtra);
+    for(var ri=0;ri<rks.length;ri++){
+      var kws=rubroExtra[rks[ri]];
+      for(var ki=0;ki<kws.length;ki++){if(t.includes(kws[ki])){rub=rks[ri];break;}}
+      if(rub!=='otros')break;
+    }
+  }
+
+  // Sub-tipo ingreso
+  var subI = detectSubIngreso(t,'') || 'h';
+
+  // ── DESCRIPCIÓN ──
+  var desc=text;
+  var dm=text.match(/(?:gast[eé]|pagu[eé]|compr[eé]|cobr[eé]|por|para|de|en)\s+(.+)/i);
+  if(dm)desc=dm[1].trim();
+  // Limpiar montos y fechas del texto de descripción
+  desc=desc.replace(/\d[\d.,]*/g,'').replace(/\s{2,}/g,' ').trim();
+  if(desc.length<3)desc=text;
+  desc=desc.charAt(0).toUpperCase()+desc.slice(1);
+
+  // ── APLICAR AL FORMULARIO ──
+  var ruboLabel=(RUBROS.find(function(r){return r.id===rub;})||{n:rub}).n;
+  var fechaDisplay=fmtDate(fecha);
+
+  if(!esI){
+    setMode('g');
+    selRub(rub);
+    el('gMonto').value=monto;
+    el('gDesc').value=desc;
+    el('gDate').value=fecha;
+    el('voiceSt').textContent='✓ Gasto $'+monto.toLocaleString('es-AR')+' · '+ruboLabel+' · '+fechaDisplay;
+  }else{
+    setMode('i');
+    el('iSub').value=subI;
+    el('iMonto').value=monto;
+    el('iDesc').value=desc;
+    el('iDate').value=fecha;
+    el('voiceSt').textContent='✓ Ingreso $'+monto.toLocaleString('es-AR')+' · '+(SUBMAP[subI]||subI)+' · '+fechaDisplay;
+  }
+  toast('🎙️ '+(!esI?'Gasto':'Ingreso')+' detectado — revisá y confirmá');
 }
 function selScanOpt(val){
   scanAnswer=val;
