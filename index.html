@@ -147,6 +147,25 @@ button,input,select{font-family:'DM Mono',monospace;font-size:13px}
 .dcn{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
 .dcv{font-family:'Fraunces',serif;font-size:18px;color:var(--gold)}
 .dcc{font-size:9px;color:var(--muted);margin-top:2px}
+
+.edit-modal{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:3000;display:flex;align-items:center;justify-content:center;padding:14px}
+.edit-box{background:var(--s1);border:1px solid var(--border);width:100%;max-width:420px;max-height:90vh;display:flex;flex-direction:column}
+.edit-hdr{display:flex;align-items:center;justify-content:space-between;padding:11px 15px;border-bottom:1px solid var(--border)}
+.edit-ttl{font-family:'Fraunces',serif;font-size:14px;color:var(--gold)}
+.edit-x{background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer}
+.edit-body{overflow-y:auto;padding:14px;flex:1}
+.edit-footer{padding:11px 15px;border-top:1px solid var(--border);display:flex;gap:7px}
+.edit-save{flex:1;padding:11px;background:var(--gold);color:var(--bg);border:none;font-size:10px;letter-spacing:.1em;cursor:pointer}
+.edit-cancel{padding:11px 13px;background:none;border:1px solid var(--border);color:var(--muted);font-size:10px;cursor:pointer}
+.rec-row{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap}
+.rec-btn{padding:6px 10px;background:rgba(200,160,106,.08);border:1px solid var(--gold);color:var(--gold);font-size:9px;cursor:pointer;letter-spacing:.06em}
+.rec-btn:active{background:rgba(200,160,106,.18)}
+.rec-btn.active{background:var(--gold);color:var(--bg)}
+.rec-btn.danger{border-color:var(--expense);color:var(--expense);background:rgba(196,122,138,.08)}
+.rec-badge{font-size:8px;padding:1px 6px;border:1px solid var(--gold);color:var(--gold);background:rgba(200,160,106,.08);margin-left:4px;vertical-align:middle}
+.rec-badge.done{border-color:var(--income);color:var(--income);background:rgba(144,196,122,.1)}
+.rec-badge.wait{border-color:var(--muted);color:var(--muted)}
+.ti-actions{display:flex;gap:3px;align-items:center}
 .custat{padding:8px 12px;margin-bottom:10px;border-left:3px solid var(--gold);font-size:11px;background:rgba(200,160,106,.06)}
 .scan-modal{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:3000;display:flex;align-items:center;justify-content:center;padding:14px}
 .scan-box{background:var(--s1);border:1px solid var(--border);width:100%;max-width:420px;max-height:90vh;display:flex;flex-direction:column}
@@ -402,6 +421,76 @@ button,input,select{font-family:'DM Mono',monospace;font-size:13px}
 </div>
 </div>
 
+
+<div id="editModal" style="display:none" class="edit-modal">
+  <div class="edit-box">
+    <div class="edit-hdr"><div class="edit-ttl" id="editTtl">✏️ Editar movimiento</div><button class="edit-x" onclick="closeEdit()">×</button></div>
+    <div class="edit-body">
+      <div id="editTipoWrap" class="fg">
+        <label>Tipo</label>
+        <div class="mtabs" style="margin-bottom:8px">
+          <button class="mt" id="editMtI" onclick="setEditTipo('i')">▲ Ingreso</button>
+          <button class="mt" id="editMtG" onclick="setEditTipo('g')">▼ Gasto</button>
+        </div>
+      </div>
+      <div id="editSubWrap" class="fg" style="display:none">
+        <label>Tipo ingreso</label>
+        <select class="fi" id="editSub">
+          <option value="h">💼 Honorarios</option>
+          <option value="r">🏠 Renta</option>
+          <option value="int">🏦 Intereses</option>
+          <option value="inv">📈 Inversiones</option>
+        </select>
+      </div>
+      <div id="editRubWrap" class="fg" style="display:none">
+        <label>Rubro</label>
+        <div class="rbgrid" id="editRbGrid"></div>
+      </div>
+      <div class="fr">
+        <div class="fg"><label>Fecha</label><input class="fi" type="date" id="editFecha"></div>
+        <div class="fg"><label>Monto $</label><input class="fi" type="number" id="editMonto" placeholder="0" inputmode="decimal"></div>
+      </div>
+      <div class="fg"><label>Descripción</label><input class="fi" type="text" id="editDesc" placeholder="Concepto..."></div>
+      <div class="fg"><label>Nota</label><input class="fi" type="text" id="editNota" placeholder="Detalle..."></div>
+
+      <!-- RECUPERO (solo para gastos) -->
+      <div id="editRecWrap" style="display:none">
+        <div style="border-top:1px solid var(--border);margin:10px 0;padding-top:10px">
+          <div style="font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px">💰 Recupero de gasto</div>
+          <div class="mtabs" style="margin-bottom:8px">
+            <button class="mt" id="recEstNo" onclick="setRecEst('no')">Sin recupero</button>
+            <button class="mt" id="recEstSi" onclick="setRecEst('si')">Recuperable</button>
+          </div>
+          <div id="recDetalleWrap" style="display:none">
+            <div class="fg"><label>% recuperado</label>
+              <input class="fi" type="number" id="editRecPct" placeholder="100" min="0" max="100" style="width:80px">
+              <span style="font-size:9px;color:var(--muted);margin-left:6px">% del gasto</span>
+            </div>
+            <div class="fg"><label>Estado</label>
+              <div class="rec-row">
+                <button class="rec-btn" id="recStPend" onclick="setRecSt('pendiente')">⏳ Pendiente</button>
+                <button class="rec-btn" id="recStParcial" onclick="setRecSt('parcial')">💰 Parcial</button>
+                <button class="rec-btn" id="recStOk" onclick="setRecSt('recuperado')">✅ Recuperado</button>
+              </div>
+            </div>
+            <div style="font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:10px 0 6px">🔔 Recordatorios</div>
+            <div class="rec-row">
+              <button class="rec-btn" id="recNotif24" onclick="toggleRecNotif(24)">⏰ 24hs</button>
+              <button class="rec-btn" id="recNotif48" onclick="toggleRecNotif(48)">⏰ 48hs</button>
+              <button class="rec-btn danger" onclick="clearRecNotifs()">🔕 Desactivar</button>
+            </div>
+            <div id="recNotifStatus" style="font-size:9px;color:var(--muted);margin-top:6px;font-style:italic"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="edit-footer">
+      <button class="edit-cancel" onclick="closeEdit()">Cancelar</button>
+      <button class="edit-save" onclick="saveEdit()">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
 <div id="scanModal" style="display:none" class="scan-modal">
   <div class="scan-box">
     <div class="scan-hdr"><div class="scan-ttl">📄 Comprobante</div><button class="scan-x" onclick="closeScan()">×</button></div>
@@ -562,7 +651,7 @@ function initApp(){
     b.onclick=function(){ahCur=c[0];document.querySelectorAll('.curbtn').forEach(function(x){x.classList.remove('on');});b.classList.add('on');};
     cb.appendChild(b);
   });
-  initVoice();renderAll();syncFB();loadDolar();
+  initVoice();renderAll();syncFB();loadDolar();checkRecPending();setupAutoDetect();
   window.addEventListener('offline',function(){el('obar').style.display='block';});
   window.addEventListener('online',function(){el('obar').style.display='none';syncFB();});
   if(!navigator.onLine)el('obar').style.display='block';
@@ -674,6 +763,8 @@ function renderTxs(){
       var meta=isI?(SUBMAP[t.sub]||t.sub):(r.e+' '+r.n+(t.subRubro?' · '+t.subRubro:''));
       if(t.custCtx==='con_hijos')meta+=' 🟠';else if(t.custCtx==='sin_hijos')meta+=' 🔵';
       if(t.nota)meta+=' · '+esc(t.nota);
+      var recBadge='';
+      if(t.rec){var rst=t.rec.estado;recBadge='<span class="rec-badge'+(rst==='recuperado'?' done':rst==='parcial'?' active':' wait')+'">'+(rst==='recuperado'?'✅ recuperado':rst==='parcial'?'💰 parcial':'⏳ recupero pend.')+'</span>';}
       html+='<div class="ti"><div class="ts '+t.tipo+'"></div><div><div class="td">'+esc(t.desc)+'</div><div class="tm">'+meta+'</div></div><div class="ta '+t.tipo+'">'+(isI?'+':'−')+fmt(t.monto)+'</div><button class="tdel" onclick="delTx('+t.id+')">×</button></div>';
     });
   });
@@ -907,6 +998,233 @@ function renderCust(){
   Object.keys(meses).sort(function(a,b){return b.localeCompare(a);}).forEach(function(m){var s=meses[m];html+='<div class="pm"><div class="pmn">'+fmMonth(m)+'</div><div style="font-size:10px;color:#e07830;margin-bottom:2px">🟠 Con ellos: '+fmt(s.con)+'</div><div style="font-size:10px;color:#64b4dc;margin-bottom:4px">🔵 Sin ellos: '+fmt(s.sin)+'</div><div class="pmv" style="color:var(--gold)">'+fmt(s.total)+'</div></div>';});
   cr.innerHTML=html+'</div>';
 }
+
+
+// ══ DETECCIÓN AUTOMÁTICA DE RUBRO ══
+var RUBRO_KW = {
+  impuestos:    ['afip','arca','arba','iibb','ingresos brutos','impuesto','tasa','municipal','ganancias','bienes personales','rentas'],
+  servicios:    ['epec','edemsa','aysa','metrogas','telecom','personal','movistar','claro','fibertel','internet','luz','agua','gas natural','cable'],
+  alquiler:     ['alquiler','inquilino','locacion','mensualidad alquiler'],
+  transporte:   ['nafta','combustible','shell','ypf','axion','peaje','uber','cabify','remis','taxi','colectivo','tren','subte'],
+  salud:        ['farmacia','drogueria','medico','doctor','clinica','hospital','turno','obra social','prepaga','osde','swiss','analisis'],
+  personal:     ['ropa','zapatillas','indumentaria','corte pelo','peluqueria','barberia','higiene','perfumeria'],
+  tecnologia:   ['netflix','spotify','apple','google','amazon','software','hosting','dominio','nube'],
+  bancarios:    ['comision banco','mantenimiento','tarjeta','cuota tarjeta','prestamo','banco'],
+  alimentacion: ['supermercado','carrefour','disco','jumbo','walmart','dia','verduleria','carniceria','panaderia','almacen','kiosco'],
+  hijos:        ['colegio','escuela','jardin','club','actividad','cuota colegio','benicio','jano'],
+  galacticos:   ['asado galacticos','torneo galacticos','viaje galacticos','mdc'],
+  estudio:      ['estudio juridico','honorarios estudio','alquiler estudio','gastos estudio'],
+  bebidas:      ['vino','whisky','fernet','cerveza','birra','spirits','licoreria'],
+  salidas:      ['restaurant','restaurante','bar','cafe','cafeteria','cine','teatro','entretenimiento','pizza','sushi'],
+};
+var INGRESO_KW = {
+  h:   ['honorarios','cobro','cliente','factura','servicio profesional','trabajo'],
+  r:   ['alquiler cobrado','renta','inquilino pago','locatario'],
+  int: ['interes','plazo fijo','cauciones','renta fija','dividendo'],
+  inv: ['venta acciones','cedear','crypto','bitcoin','inversion'],
+};
+
+function detectRubro(desc, nota) {
+  var txt = (desc + ' ' + (nota||'')).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  for (var r in RUBRO_KW) {
+    var kws = RUBRO_KW[r];
+    for (var i=0; i<kws.length; i++) { if (txt.includes(kws[i])) return r; }
+  }
+  return null;
+}
+function detectSubIngreso(desc, nota) {
+  var txt = (desc + ' ' + (nota||'')).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  for (var s in INGRESO_KW) {
+    var kws = INGRESO_KW[s];
+    for (var i=0; i<kws.length; i++) { if (txt.includes(kws[i])) return s; }
+  }
+  return null;
+}
+
+// ══ EDICIÓN ══
+var editId = null, editTipo = 'g', editRecEst = 'no', editRecSt = 'pendiente', editRecNotifs = [];
+
+function openEdit(id) {
+  var tx = txs.find(function(t){ return t.id === id; });
+  if (!tx) return;
+  editId = id;
+  editTipo = tx.tipo;
+  editRecEst = tx.rec ? 'si' : 'no';
+  editRecSt = (tx.rec && tx.rec.estado) || 'pendiente';
+  editRecNotifs = (tx.rec && tx.rec.notifs) || [];
+
+  el('editModal').style.display = 'flex';
+  el('editTtl').textContent = tx.tipo==='i' ? '✏️ Editar ingreso' : '✏️ Editar gasto';
+  el('editFecha').value = tx.fecha;
+  el('editMonto').value = tx.monto;
+  el('editDesc').value = tx.desc || '';
+  el('editNota').value = tx.nota || '';
+
+  setEditTipo(tx.tipo, true);
+
+  if (tx.tipo === 'i') {
+    el('editSub').value = tx.sub || 'h';
+  } else {
+    // Marcar rubro
+    document.querySelectorAll('#editRbGrid .rb').forEach(function(b){
+      b.classList.toggle('on', b.getAttribute('onclick') === "setEditRub('"+tx.rubro+"')");
+    });
+    editRub = tx.rubro || 'otros';
+  }
+
+  // Recupero
+  el('editRecWrap').style.display = tx.tipo === 'g' ? '' : 'none';
+  setRecEst(editRecEst);
+  if (tx.rec) {
+    el('editRecPct').value = tx.rec.pct || 100;
+    setRecSt(editRecSt);
+    editRecNotifs = tx.rec.notifs || [];
+    updRecNotifBtns();
+  }
+}
+
+var editRub = 'otros';
+function setEditTipo(tipo, init) {
+  editTipo = tipo;
+  el('editMtI').className = 'mt' + (tipo==='i' ? ' i' : '');
+  el('editMtG').className = 'mt' + (tipo==='g' ? ' g' : '');
+  el('editSubWrap').style.display = tipo==='i' ? '' : 'none';
+  el('editRubWrap').style.display = tipo==='g' ? '' : 'none';
+  el('editRecWrap').style.display = tipo==='g' ? '' : 'none';
+  if (tipo==='g' && !init) {
+    // Render rubro grid
+    var rg = el('editRbGrid');
+    rg.innerHTML = RUBROS.map(function(r){
+      return '<button class="rb" onclick="setEditRub(''+r.id+'')">'+'<span class="rb-e">'+r.e+'</span>'+r.n+'</button>';
+    }).join('');
+    // Auto-detectar rubro
+    var desc = el('editDesc').value, nota = el('editNota').value;
+    var det = detectRubro(desc, nota);
+    if (det) setEditRub(det);
+  } else if (tipo==='g' && init) {
+    var rg = el('editRbGrid');
+    rg.innerHTML = RUBROS.map(function(r){
+      return '<button class="rb" onclick="setEditRub(''+r.id+'')">'+'<span class="rb-e">'+r.e+'</span>'+r.n+'</button>';
+    }).join('');
+  }
+  if (tipo==='i' && !init) {
+    var det = detectSubIngreso(el('editDesc').value, el('editNota').value);
+    if (det) el('editSub').value = det;
+  }
+}
+function setEditRub(id) {
+  editRub = id;
+  document.querySelectorAll('#editRbGrid .rb').forEach(function(b){
+    b.classList.toggle('on', b.getAttribute('onclick') === "setEditRub('"+id+"')");
+  });
+}
+function setRecEst(v) {
+  editRecEst = v;
+  el('recEstNo').className = 'mt' + (v==='no' ? '' : '');
+  el('recEstSi').className = 'mt' + (v==='si' ? ' i' : '');
+  el('recDetalleWrap').style.display = v==='si' ? '' : 'none';
+}
+function setRecSt(v) {
+  editRecSt = v;
+  ['Pend','Parcial','Ok'].forEach(function(s){ el('recSt'+s).className='rec-btn'; });
+  var map = {pendiente:'Pend', parcial:'Parcial', recuperado:'Ok'};
+  if (map[v]) el('recSt'+map[v]).classList.add('active');
+}
+function toggleRecNotif(hs) {
+  var idx = editRecNotifs.indexOf(hs);
+  if (idx > -1) editRecNotifs.splice(idx, 1);
+  else editRecNotifs.push(hs);
+  updRecNotifBtns();
+}
+function clearRecNotifs() {
+  editRecNotifs = [];
+  updRecNotifBtns();
+  toast('🔕 Recordatorios desactivados');
+}
+function updRecNotifBtns() {
+  el('recNotif24').className = 'rec-btn' + (editRecNotifs.indexOf(24)>-1 ? ' active' : '');
+  el('recNotif48').className = 'rec-btn' + (editRecNotifs.indexOf(48)>-1 ? ' active' : '');
+  var st = el('recNotifStatus');
+  if (editRecNotifs.length) st.textContent = 'Recordatorios activos: ' + editRecNotifs.map(function(h){return h+'hs';}).join(', ');
+  else st.textContent = 'Sin recordatorios activos';
+}
+function closeEdit() { el('editModal').style.display = 'none'; editId = null; }
+
+async function saveEdit() {
+  var tx = txs.find(function(t){ return t.id === editId; });
+  if (!tx) return;
+  tx.fecha = el('editFecha').value;
+  tx.monto = parseFloat(el('editMonto').value) || tx.monto;
+  tx.desc  = el('editDesc').value.trim();
+  tx.nota  = el('editNota').value.trim();
+  tx.tipo  = editTipo;
+  if (editTipo === 'i') { tx.sub = el('editSub').value; }
+  else { tx.rubro = editRub; }
+  if (editTipo === 'g' && editRecEst === 'si') {
+    tx.rec = { estado: editRecSt, pct: parseFloat(el('editRecPct').value)||100, notifs: editRecNotifs };
+    schedRecordatorios(tx);
+  } else {
+    delete tx.rec;
+  }
+  localStorage.setItem('cfin_txs', JSON.stringify(txs));
+  renderTxs(); updateSum(); buildPills();
+  var p = {}; p['tx_'+tx.id] = tx; await fbPatch('txs', p);
+  closeEdit();
+  toast('✓ Cambios guardados');
+}
+
+// ══ RECORDATORIOS DE RECUPERO ══
+function schedRecordatorios(tx) {
+  if (!tx.rec || !tx.rec.notifs || !tx.rec.notifs.length) return;
+  if (Notification.permission === 'default') {
+    Notification.requestPermission().then(function(p){ if(p==='granted') _schedNotifs(tx); });
+  } else if (Notification.permission === 'granted') {
+    _schedNotifs(tx);
+  }
+}
+function _schedNotifs(tx) {
+  var pending = JSON.parse(localStorage.getItem('cfin_rec_pending') || '[]');
+  // Quitar notifs anteriores del mismo tx
+  pending = pending.filter(function(p){ return p.txId !== tx.id; });
+  var now = Date.now();
+  tx.rec.notifs.forEach(function(hs){
+    pending.push({ txId: tx.id, hs: hs, fireAt: now + hs*3600*1000, desc: tx.desc, monto: tx.monto });
+  });
+  localStorage.setItem('cfin_rec_pending', JSON.stringify(pending));
+  toast('🔔 Recordatorio programado en ' + tx.rec.notifs.map(function(h){return h+'hs';}).join(' y '));
+}
+function checkRecPending() {
+  var pending = JSON.parse(localStorage.getItem('cfin_rec_pending') || '[]');
+  var now = Date.now(), remaining = [];
+  pending.forEach(function(p){
+    if (p.fireAt <= now) {
+      if (Notification.permission === 'granted') {
+        new Notification('💰 ControlFin — Recupero pendiente', {
+          body: '¿Recuperaste el gasto "'+p.desc+'" de '+fmt(p.monto)+'?',
+          tag: 'rec_'+p.txId+'_'+p.hs,
+          requireInteraction: true
+        });
+      }
+    } else {
+      remaining.push(p);
+    }
+  });
+  localStorage.setItem('cfin_rec_pending', JSON.stringify(remaining));
+}
+
+// ══ AUTO-DETECCIÓN AL ESCRIBIR EN FORM ══
+function setupAutoDetect() {
+  var iDesc = el('iDesc'), gDesc = el('gDesc');
+  if (iDesc) iDesc.addEventListener('blur', function(){
+    var det = detectSubIngreso(iDesc.value, el('iNota').value);
+    if (det && el('iSub').value !== det) { el('iSub').value = det; toast('🔍 Tipo detectado: '+SUBMAP[det]); }
+  });
+  if (gDesc) gDesc.addEventListener('blur', function(){
+    var det = detectRubro(gDesc.value, el('gNota').value);
+    if (det && curRub === 'impuestos') { selRub(det); toast('🔍 Rubro detectado: '+(RUBROS.find(function(r){return r.id===det;})||{n:det}).n); }
+  });
+}
+
 
 var recogInst=null,isRec=false;
 function initVoice(){
