@@ -765,7 +765,9 @@ function renderTxs(){
       if(t.nota)meta+=' · '+esc(t.nota);
       var recBadge='';
       if(t.rec){var rst=t.rec.estado;recBadge='<span class="rec-badge'+(rst==='recuperado'?' done':rst==='parcial'?' active':' wait')+'">'+(rst==='recuperado'?'✅ recuperado':rst==='parcial'?'💰 parcial':'⏳ recupero pend.')+'</span>';}
-      html+='<div class="ti"><div class="ts '+t.tipo+'"></div><div><div class="td">'+esc(t.desc)+'</div><div class="tm">'+meta+'</div></div><div class="ta '+t.tipo+'">'+(isI?'+':'−')+fmt(t.monto)+'</div><button class="tdel" onclick="delTx('+t.id+')">×</button></div>';
+      var recBadge='';
+      if(t.rec){var rst=t.rec.estado;recBadge='<span style="font-size:8px;padding:1px 5px;border:1px solid;margin-left:4px;color:'+(rst==='recuperado'?'var(--income)':rst==='parcial'?'var(--gold)':'var(--muted)')+'">'+(rst==='recuperado'?'✅ recuperado':rst==='parcial'?'💰 parcial':'⏳ recupero')+'</span>';}
+      html+='<div class="ti"><div class="ts '+t.tipo+'"></div><div><div class="td">'+esc(t.desc)+recBadge+'</div><div class="tm">'+meta+'</div></div><div class="ta '+t.tipo+'">'+(isI?'+':'−')+fmt(t.monto)+'</div><div class="ti-actions"><button style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:2px 5px" onclick="openEdit('+t.id+')">✏️</button><button class="tdel" onclick="delTx('+t.id+')">×</button></div></div>';
     });
   });
   c.innerHTML=html;
