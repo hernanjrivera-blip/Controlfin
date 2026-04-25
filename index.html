@@ -194,6 +194,9 @@ button,input,select{font-family:'DM Mono',monospace;font-size:13px}
 .chat-input-row{display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--border);background:var(--s2)}
 .chat-input{flex:1;background:var(--s3);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:12px;padding:8px 10px;outline:none;resize:none;height:38px}
 .chat-input:focus{border-color:var(--gold)}
+
+.chat-voice-btn{background:none;border:1px solid var(--border);color:var(--muted);font-size:16px;padding:0 10px;cursor:pointer;border-radius:2px;transition:all .2s;flex-shrink:0;}
+.chat-voice-btn.rec{border-color:var(--expense);color:var(--expense);animation:vpulse 1s infinite;}
 .chat-send{background:#4285f4;border:none;color:#fff;font-size:18px;padding:0 14px;cursor:pointer;border-radius:2px}
 .chat-send:disabled{opacity:.4;cursor:not-allowed}
 .chat-sugs{display:flex;gap:5px;flex-wrap:wrap;padding:8px 12px;border-bottom:1px solid var(--border)}
@@ -632,7 +635,8 @@ button,input,select{font-family:'DM Mono',monospace;font-size:13px}
       <div class="msg bot">¡Hola! Soy tu consultor financiero. Tengo acceso a tus datos de ControlFin. ¿En qué puedo ayudarte?</div>
     </div>
     <div class="chat-input-row">
-      <textarea class="chat-input" id="chatInput" placeholder="Preguntame sobre tus finanzas..." rows="1"
+      <button class="chat-voice-btn" id="chatVoiceBtn" onclick="toggleChatVoice()" title="Hablar">🎙️</button>
+      <textarea class="chat-input" id="chatInput" placeholder="Preguntame o tocá el micrófono..." rows="1"
         onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"></textarea>
       <button class="chat-send" id="chatSend" onclick="sendChat()">➤</button>
     </div>
@@ -851,8 +855,53 @@ function buildContext() {
     'Responde de forma directa y clara, maximo 3-4 parrafos.';
 }
 
+
+// ── VOZ EN EL CHAT ──
+var chatRecog = null, chatRecording = false;
+
+function initChatVoice(){
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ var btn=el('chatVoiceBtn'); if(btn)btn.style.display='none'; return; }
+  chatRecog = new SR();
+  chatRecog.lang = 'es-AR';
+  chatRecog.interimResults = true;
+  chatRecog.continuous = false;
+  chatRecog.onresult = function(e){
+    var transcript = e.results[0][0].transcript;
+    el('chatInput').value = transcript;
+    if(e.results[0].isFinal){
+      stopChatVoice();
+      setTimeout(function(){ sendChat(); }, 300);
+    }
+  };
+  chatRecog.onend = function(){ stopChatVoice(); };
+  chatRecog.onerror = function(e){ stopChatVoice(); if(e.error!=='aborted') toast('Error de micrófono: '+e.error); };
+}
+
+function toggleChatVoice(){
+  if(!chatRecog){ initChatVoice(); }
+  if(chatRecording){ stopChatVoice(); return; }
+  try{
+    chatRecog.start();
+    chatRecording = true;
+    var btn = el('chatVoiceBtn');
+    if(btn){ btn.className='chat-voice-btn rec'; btn.textContent='⏹️'; }
+    el('chatInput').placeholder = 'Escuchando...';
+  } catch(e){ toast('No se pudo iniciar el micrófono'); }
+}
+
+function stopChatVoice(){
+  chatRecording = false;
+  if(chatRecog) try{ chatRecog.stop(); }catch(e){}
+  var btn = el('chatVoiceBtn');
+  if(btn){ btn.className='chat-voice-btn'; btn.textContent='🎙️'; }
+  var inp = el('chatInput');
+  if(inp) inp.placeholder = 'Preguntame o tocá el micrófono...';
+}
+
 function openChat(){
   el('chatModal').style.display='flex';
+  if(!chatRecog) initChatVoice();
   setTimeout(function(){ el('chatInput').focus(); }, 100);
 }
 function closeChat(){ el('chatModal').style.display='none'; }
@@ -897,7 +946,7 @@ async function sendChat() {
     }
 
     var resp = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_KEY,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=' + GEMINI_KEY,
       {
         method: 'POST',
         headers: {
@@ -926,7 +975,11 @@ async function sendChat() {
 
   } catch(e) {
     loading.className = 'msg bot';
-    loading.textContent = 'Error al conectar con Gemini. Verificá tu conexión.';
+    var errMsg = 'Error al conectar con Gemini.';
+    if(e.message && e.message.includes('429')) errMsg = '⏳ Límite de consultas alcanzado. Esperá 1 minuto y volvé a intentar.';
+    else if(e.message && e.message.includes('403')) errMsg = '🔑 API key inválida. Verificá la configuración.';
+    else errMsg = '⚠️ Error al conectar. Verificá tu conexión a internet.';
+    loading.textContent = errMsg;
     console.error('[Chat]', e);
   }
 
@@ -1871,7 +1924,7 @@ async function initScan(input){
   scanAnswer=null;
   var b64=await new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(file);});
   try{
-    var resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+GEMINI_KEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{inlineData:{mimeType:file.type||'image/jpeg',data:b64}},{text:'Analiza este comprobante argentino. Responde SOLO con JSON: {"fecha":"YYYY-MM-DD","monto":1234.56,"desc":"concepto","nota":"emisor","tipo":"transferencia_recibida|transferencia_emitida|pago_servicio|pago_impuesto|compra|cobro|otro","es_ingreso":false,"rubro":"uno de: impuestos,servicios,alquiler,transporte,salud,personal,tecnologia,bancarios,alimentacion,hijos,estudio,compartidos,bebidas,salidas,otros"}'}]}]})});
+    var resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key='+GEMINI_KEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{inlineData:{mimeType:file.type||'image/jpeg',data:b64}},{text:'Analiza este comprobante argentino. Responde SOLO con JSON: {"fecha":"YYYY-MM-DD","monto":1234.56,"desc":"concepto","nota":"emisor","tipo":"transferencia_recibida|transferencia_emitida|pago_servicio|pago_impuesto|compra|cobro|otro","es_ingreso":false,"rubro":"uno de: impuestos,servicios,alquiler,transporte,salud,personal,tecnologia,bancarios,alimentacion,hijos,estudio,compartidos,bebidas,salidas,otros"}'}]}]})});
     if(!resp.ok)throw new Error('Gemini '+resp.status);
     var data=await resp.json();
     var text=((((data.candidates||[])[0]||{}).content||{}).parts||[{}])[0].text||'';
