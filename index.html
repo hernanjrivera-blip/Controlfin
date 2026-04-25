@@ -897,14 +897,23 @@ async function sendChat() {
     }
 
     var resp = await fetch(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_KEY,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + GEMINI_KEY,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: contents })
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': GEMINI_KEY
+        },
+        body: JSON.stringify({
+          contents: contents,
+          generationConfig: { maxOutputTokens: 800, temperature: 0.7 }
+        })
       }
     );
-    if(!resp.ok) throw new Error('Gemini error ' + resp.status);
+    if(!resp.ok) {
+      var errData = await resp.json().catch(function(){ return {}; });
+      throw new Error('Gemini error ' + resp.status + ': ' + (errData.error&&errData.error.message||''));
+    }
     var data = await resp.json();
     var answer = ((((data.candidates||[])[0]||{}).content||{}).parts||[{}])[0].text || 'No pude procesar la respuesta.';
 
@@ -1853,6 +1862,36 @@ function parseVoice(text){
   }
   toast('🎙️ '+(!esI?'Gasto':'Ingreso')+' detectado — revisá y confirmá');
 }
+
+async function initScan(input){
+  var file=input.files[0];if(!file)return;input.value='';
+  el('scanModal').style.display='flex';
+  el('scanSt').className='scan-st';el('scanSt').textContent='⏳ Analizando con IA...';
+  el('scApply').disabled=true;el('scFecha').value=today();el('scMonto').value='';el('scDesc').value='';el('scNota').value='';
+  scanAnswer=null;
+  var b64=await new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(file);});
+  try{
+    var resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key='+GEMINI_KEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{inlineData:{mimeType:file.type||'image/jpeg',data:b64}},{text:'Analiza este comprobante argentino. Responde SOLO con JSON: {"fecha":"YYYY-MM-DD","monto":1234.56,"desc":"concepto","nota":"emisor","tipo":"transferencia_recibida|transferencia_emitida|pago_servicio|pago_impuesto|compra|cobro|otro","es_ingreso":false,"rubro":"uno de: impuestos,servicios,alquiler,transporte,salud,personal,tecnologia,bancarios,alimentacion,hijos,estudio,compartidos,bebidas,salidas,otros"}'}]}]})});
+    if(!resp.ok)throw new Error('Gemini '+resp.status);
+    var data=await resp.json();
+    var text=((((data.candidates||[])[0]||{}).content||{}).parts||[{}])[0].text||'';
+    var match=text.match(/\{[\s\S]*\}/);if(!match)throw new Error('sin JSON');
+    scanData=JSON.parse(match[0]);
+    if(scanData.fecha)el('scFecha').value=scanData.fecha;
+    if(scanData.monto)el('scMonto').value=scanData.monto;
+    if(scanData.desc)el('scDesc').value=scanData.desc;
+    if(scanData.nota)el('scNota').value=scanData.nota;
+    el('scanSt').className='scan-st'+(scanData.monto&&scanData.fecha?' ok':'');
+    el('scanSt').textContent=scanData.monto&&scanData.fecha?'✓ Datos extraídos — revisá y confirmá':'⚠️ Datos parciales — completá los campos';
+    if(scanData.es_ingreso)selScanOpt('ingreso_honorario');else selScanOpt('gasto_'+(scanData.rubro||'otros'));
+  }catch(e){
+    el('scanSt').className='scan-st err';el('scanSt').textContent='⚠️ No se pudo analizar — completá manualmente';
+    scanData={fecha:today(),monto:null,desc:'',nota:''};
+  }
+  var opts=[['ingreso_honorario','💼 Cobro honorarios'],['ingreso_renta','🏠 Cobro renta'],['gasto_servicios','⚡ Servicio'],['gasto_impuestos','🏛️ Impuesto'],['gasto_bancarios','🏦 Bancario'],['gasto_transporte','🚗 Transporte'],['gasto_salud','🏥 Salud'],['gasto_otros','📋 Otro gasto']];
+  el('scanOpts').innerHTML=opts.map(function(o){return '<button class="scan-opt" onclick="selScanOpt(\''+o[0]+'\')">'+o[1]+'</button>';}).join('');
+}
+
 function selScanOpt(val){
   scanAnswer=val;
   document.querySelectorAll('.scan-opt').forEach(function(b){b.classList.remove('on');if(b.getAttribute('onclick')==="selScanOpt('"+val+"')")b.classList.add('on');});
