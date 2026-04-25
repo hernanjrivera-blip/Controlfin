@@ -836,33 +836,19 @@ function buildContext() {
   ahorros.forEach(function(a){ saldos[a.moneda]=(saldos[a.moneda]||0)+(a.tipo==='dep'?a.monto:-a.monto); });
   var saldosStr = Object.entries(saldos).map(function(e){ return e[0]+': '+fmtN(e[1]); }).join(', ');
 
-  return 'Sos un consultor financiero personal experto. Analizá los datos y respondé en español de forma concisa y útil.
-
-'+
-    'DATOS FINANCIEROS DEL USUARIO (hoy: '+now+'):
-'+
-    '- Ingresos este mes: '+fmt(ingMes)+'
-'+
-    '- Gastos este mes: '+fmt(gasMes)+'
-'+
-    '- Balance este mes: '+fmt(ingMes-gasMes)+'
-'+
-    '- Ingresos totales: '+fmt(totalIng)+'
-'+
-    '- Gastos totales: '+fmt(totalGas)+'
-'+
-    '- Balance total: '+fmt(totalIng-totalGas)+'
-'+
-    '- Top rubros de gastos: '+topRubros+'
-'+
-    '- Próximos cobros/pagos: '+(proxAgenda||'ninguno')+'
-'+
-    '- Ahorros: '+(saldosStr||'sin registros')+'
-'+
-    '- Total movimientos: '+txs.length+'
-
-'+
-    'Respondé de forma directa, sin markdown excesivo, máximo 3-4 párrafos.';
+  return 'Sos un consultor financiero personal experto. Analiza los datos y responde en espanol de forma concisa y util. ' +
+    'DATOS FINANCIEROS (hoy: '+now+'): ' +
+    'Ingresos este mes: '+fmt(ingMes)+'. ' +
+    'Gastos este mes: '+fmt(gasMes)+'. ' +
+    'Balance este mes: '+fmt(ingMes-gasMes)+'. ' +
+    'Ingresos totales: '+fmt(totalIng)+'. ' +
+    'Gastos totales: '+fmt(totalGas)+'. ' +
+    'Balance total: '+fmt(totalIng-totalGas)+'. ' +
+    'Top rubros de gastos: '+topRubros+'. ' +
+    'Proximos cobros/pagos: '+(proxAgenda||'ninguno')+'. ' +
+    'Ahorros: '+(saldosStr||'sin registros')+'. ' +
+    'Total movimientos: '+txs.length+'. ' +
+    'Responde de forma directa y clara, maximo 3-4 parrafos.';
 }
 
 function openChat(){
