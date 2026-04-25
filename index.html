@@ -889,9 +889,7 @@ async function sendChat() {
     var contents = [];
     // Contexto del sistema como primer mensaje del usuario
     if(chatHistory.length === 1) {
-      contents.push({ role:'user', parts:[{ text: buildContext() + '
-
-Pregunta: ' + text }] });
+      contents.push({ role:'user', parts:[{ text: buildContext() + ' Pregunta: ' + text }] });
     } else {
       contents.push({ role:'user', parts:[{ text: buildContext() }] });
       contents.push({ role:'model', parts:[{ text:'Entendido. Tengo acceso a tus datos financieros. ¿En qué puedo ayudarte?' }] });
