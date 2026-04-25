@@ -946,7 +946,7 @@ async function sendChat() {
     }
 
     var resp = await fetch(
-      'https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=' + GEMINI_KEY,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_KEY,
       {
         method: 'POST',
         headers: {
@@ -959,6 +959,15 @@ async function sendChat() {
         })
       }
     );
+    if(resp.status === 429) {
+      // Retry automático después de 15 segundos
+      loading.textContent = '⏳ Límite alcanzado — reintentando en 15 segundos...';
+      await new Promise(function(r){ setTimeout(r, 15000); });
+      resp = await fetch(
+        'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' + GEMINI_KEY,
+        { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ contents: contents, generationConfig: { maxOutputTokens: 800 } }) }
+      );
+    }
     if(!resp.ok) {
       var errData = await resp.json().catch(function(){ return {}; });
       throw new Error('Gemini error ' + resp.status + ': ' + (errData.error&&errData.error.message||''));
@@ -1924,7 +1933,7 @@ async function initScan(input){
   scanAnswer=null;
   var b64=await new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(file);});
   try{
-    var resp=await fetch('https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key='+GEMINI_KEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{inlineData:{mimeType:file.type||'image/jpeg',data:b64}},{text:'Analiza este comprobante argentino. Responde SOLO con JSON: {"fecha":"YYYY-MM-DD","monto":1234.56,"desc":"concepto","nota":"emisor","tipo":"transferencia_recibida|transferencia_emitida|pago_servicio|pago_impuesto|compra|cobro|otro","es_ingreso":false,"rubro":"uno de: impuestos,servicios,alquiler,transporte,salud,personal,tecnologia,bancarios,alimentacion,hijos,estudio,compartidos,bebidas,salidas,otros"}'}]}]})});
+    var resp=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key='+GEMINI_KEY,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{parts:[{inlineData:{mimeType:file.type||'image/jpeg',data:b64}},{text:'Analiza este comprobante argentino. Responde SOLO con JSON: {"fecha":"YYYY-MM-DD","monto":1234.56,"desc":"concepto","nota":"emisor","tipo":"transferencia_recibida|transferencia_emitida|pago_servicio|pago_impuesto|compra|cobro|otro","es_ingreso":false,"rubro":"uno de: impuestos,servicios,alquiler,transporte,salud,personal,tecnologia,bancarios,alimentacion,hijos,estudio,compartidos,bebidas,salidas,otros"}'}]}]})});
     if(!resp.ok)throw new Error('Gemini '+resp.status);
     var data=await resp.json();
     var text=((((data.candidates||[])[0]||{}).content||{}).parts||[{}])[0].text||'';
